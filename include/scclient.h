@@ -41,7 +41,7 @@ public:
     void unsubscribe(string event);
 
     // Acknoledge Functions
-    function<void()> connected_callback = NULL;
+    function<void(ScClient *)> connected_callback;
     function<void(string error)> connected_error_callback = NULL;
     function<void(string reason)> disconnected_callback = NULL;
 
@@ -51,7 +51,6 @@ public:
 
 private:
     void message_processing();
-
     string address;
     int port;
     string path;

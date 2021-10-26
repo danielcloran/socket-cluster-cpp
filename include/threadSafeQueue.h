@@ -10,7 +10,7 @@ template <class T>
 class ThreadSafeQueue
 {
 public:
-    ThreadSafeQueue(int maxSize = 20) : maxSize(maxSize) {}
+    ThreadSafeQueue(int maxSize = 20) : maxSize(maxSize), q(), m(), c() {}
     ~ThreadSafeQueue() {}
 
     // Add an element to the queue.
@@ -25,6 +25,7 @@ public:
             q.pop();
             q.push(t);
         }
+        std::cout<< "Adding to msg Queue size is now: " << q.size() << std::endl;
         c.notify_one();
     }
 
@@ -36,6 +37,7 @@ public:
         if (q.empty()) return "";
         T val = q.front();
         q.pop();
+        std::cout<< "Removing from msg Queue size is now: " << q.size() << std::endl;
         return val;
     }
 
@@ -48,6 +50,12 @@ public:
             c.wait(lock);
         }
         return true;
+    }
+
+    void clear(void)
+    {
+        std::unique_lock<std::mutex> lock(m);
+        q.clear();
     }
 
 private:

@@ -1,8 +1,6 @@
 #include <scclient.h>
 #include <thread>
 
-static volatile bool destroy_flag = false;
-
 ScClient::ScClient(string _address, int _port, string _path) : address(_address), port(_port), path(_path)
 {
     message_queue = new ThreadSafeQueue<std::string>();
@@ -22,9 +20,6 @@ int ScClient::socket_connect()
 {
     context = NULL;
     wsi = NULL;
-
-    signal(SIGINT, [](int)
-           { destroy_flag = true; });
 
     memset(&info, 0, sizeof(info));
     info.port = CONTEXT_PORT_NO_LISTEN;
@@ -64,8 +59,6 @@ int ScClient::socket_connect()
     i.ietf_version_or_minus_one = -1;
     i.userdata = (void *)this;
 
-    lwsl_notice("[ScClient] context created.\n");
-
     if (context == NULL)
     {
         lwsl_notice("[ScClient] context is NULL.\n");
@@ -80,9 +73,6 @@ int ScClient::socket_connect()
         return 0;
     }
     std::thread message_thread(&ScClient::message_processing, this);
-
-    // lws_callback_on_writable(wsi);
-    lwsl_notice("[ScClient] wsi create success.\n");
 
     while (!destroy_flag)
     {
@@ -101,8 +91,6 @@ void ScClient::socket_reset()
 
     connection_flag = false;
     destroy_flag = false;
-
-    // message_queue->clear();
 }
 
 void ScClient::socket_disconnect()
@@ -162,11 +150,8 @@ void ScClient::publish(string event, json_object *data)
     json_object_put(jobj);
 }
 
-int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len)
+int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *in, size_t len)
 {
-    // printf("INSIDE: printf(\"%%p\", pf) is %p\n", this);
-
-    // lwsl_notice("handle_lws_callback reason: %d", reason);
     switch (reason)
     {
     case LWS_CALLBACK_CLIENT_ESTABLISHED:
@@ -216,7 +201,7 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
 
     case LWS_CALLBACK_CLOSED:
     {
-        lwsl_notice("[ScClient Service] LWS_CALLBACK_CLOSED\n");
+        lwsl_notice("[ScClient Service] Disconnected from server\n");
         destroy_flag = 1;
         connection_flag = 0;
         if (disconnected_callback != NULL)
@@ -273,6 +258,7 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
         }
     }
     break;
+
     case LWS_CALLBACK_CLIENT_WRITEABLE:
     {
         std::string message = message_queue->dequeue();
@@ -287,9 +273,9 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
         }
     }
     break;
+
     case LWS_CALLBACK_WSI_DESTROY:
     {
-        lwsl_notice("[ScClient Service] LWS_CALLBACK_WSI_DESTROY\n");
         destroy_flag = 1;
     }
     default:
@@ -300,11 +286,10 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
 
 static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len)
 {
-
     if (user != NULL)
     {
         ScClient *client = static_cast<ScClient *>(user);
-        return client->handle_lws_callback(wsi, reason, user, in, len);
+        return client->handle_lws_callback(wsi, reason, in, len);
     }
     return 0;
 }

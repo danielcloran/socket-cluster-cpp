@@ -7,17 +7,20 @@ add_definitions(-std=c++17 -Wno-deprecated -Wno-nullability-completeness -Wno-de
 set(SOURCES
     # Lib cpp file
     src/scclient.cpp
-    # Example
-    examples/example_client.cpp
 )
 
 find_package(libwebsockets CONFIG REQUIRED)
 list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
 include(LwsCheckRequirements)
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(example_client_simple examples/example_client_simple.cpp ${SOURCES})
+add_executable(example_client_classed examples/example_client_classed.cpp ${SOURCES})
 
-target_include_directories(${PROJECT_NAME} PRIVATE HEADER_FILE_ONLY "${PROJECT_SOURCE_DIR}/include")
-target_include_directories(${PROJECT_NAME} PRIVATE HEADER_FILE_ONLY "/usr/local/include/")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC -L/usr/local/lib -lwebsockets -ljson-c)
+target_include_directories(example_client_simple PRIVATE HEADER_FILE_ONLY "${PROJECT_SOURCE_DIR}/include")
+target_include_directories(example_client_simple PRIVATE HEADER_FILE_ONLY "/usr/local/include/")
+target_link_libraries(example_client_simple PUBLIC -L/usr/local/lib -lwebsockets -ljson-c)
+
+target_include_directories(example_client_classed PRIVATE HEADER_FILE_ONLY "${PROJECT_SOURCE_DIR}/include")
+target_include_directories(example_client_classed PRIVATE HEADER_FILE_ONLY "/usr/local/include/")
+target_link_libraries(example_client_classed PUBLIC -L/usr/local/lib -lwebsockets -ljson-c)

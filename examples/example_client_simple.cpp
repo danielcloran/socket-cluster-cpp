@@ -62,7 +62,6 @@ int main() {
     client->connected_error_callback = connected_error_callback;
     client->disconnected_callback = disconnected_callback;
 
-
     /*
         Since the client is threadsafe, we could move this while to a thread
         and have it run in the background. Subscriptions can happen from anywhere...

@@ -21,6 +21,10 @@ public:
             q.push(t);
         }
         else {
+            /*
+                If this error is thrown, the write rate is too high, or the socket
+                has disconnected without recognizing and the queue is backing up.
+            */
             std::cerr << "Message Queue Full. Dumping oldest message." << std::endl;
             q.pop();
             q.push(t);

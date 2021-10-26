@@ -20,7 +20,6 @@ static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason
 struct session_data
 {
     int fd;
-    // void *user_space;
 };
 
 typedef function<void(string event, json_object *data)> sccCallback;
@@ -36,7 +35,7 @@ public:
     void socket_reset();
     void socket_disconnect();
 
-    int handle_lws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
+    int handle_lws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *in, size_t len);
 
     // Send Functions
     void publish(string event, json_object *);
@@ -44,18 +43,18 @@ public:
     void unsubscribe(string event);
 
     // Acknowledge Functions
-    std::function<void(int)> f_display;
-
     function<void(ScClient *)> connected_callback = NULL;
     function<void(string error)> connected_error_callback = NULL;
     function<void(string reason)> disconnected_callback = NULL;
 
+    // Allow for custom ping-pong strings
     string ping_str = "";
     string pong_str = "";
 
     // Status Flags
-    volatile bool connected = false;
     volatile bool connection_flag = false;
+    volatile bool destroy_flag = false;
+
 
     ~ScClient();
 

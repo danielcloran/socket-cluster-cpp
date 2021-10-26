@@ -3,7 +3,7 @@
 #include <string.h>
 #include <thread>
 
-#define ENDPOINT "qa-ws.stuffraiser.com"
+#define ENDPOINT "127.0.0.1"
 
 class SocketManager
 {

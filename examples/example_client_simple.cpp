@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <string.h>
 
-#define ENDPOINT "qa-ws.stuffraiser.com"
+#define ENDPOINT "127.0.0.1"
 
 volatile bool stop = false;
 

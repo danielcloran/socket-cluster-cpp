@@ -67,6 +67,18 @@
         "unordered_map": "cpp",
         "utility": "cpp",
         "vector": "cpp",
-        "__bits": "cpp"
+        "__bits": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "numbers": "cpp",
+        "numeric": "cpp",
+        "random": "cpp",
+        "semaphore": "cpp",
+        "set": "cpp",
+        "unordered_set": "cpp",
+        "*.tcc": "cpp",
+        "memory_resource": "cpp",
+        "stop_token": "cpp",
+        "cinttypes": "cpp"
     }
 }

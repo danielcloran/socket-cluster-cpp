@@ -25,7 +25,7 @@ public:
             q.pop();
             q.push(t);
         }
-        std::cout<< "Adding to msg Queue size is now: " << q.size() << std::endl;
+        // std::cout<< "Adding to msg Queue size is now: " << q.size() << std::endl;
         c.notify_one();
     }
 
@@ -37,7 +37,7 @@ public:
         if (q.empty()) return "";
         T val = q.front();
         q.pop();
-        std::cout<< "Removing from msg Queue size is now: " << q.size() << std::endl;
+        // std::cout<< "Removing from msg Queue size is now: " << q.size() << std::endl;
         return val;
     }
 

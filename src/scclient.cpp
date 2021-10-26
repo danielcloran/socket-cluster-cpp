@@ -5,9 +5,6 @@
 static volatile bool destroy_flag = false;
 static volatile bool connection_flag = false;
 
-map<string, sccCallback> subscriptions;
-ThreadSafeQueue<std::string> *message_queue;
-
 // These MUST be defined globally for LWS (will segfault if not)
 struct lws_protocols protocol;
 struct lws *wsi;
@@ -19,7 +16,7 @@ struct sigaction act;
 ScClient::ScClient(string _address, int _port, string _path) : address(_address), port(_port), path(_path)
 {
     message_queue = new ThreadSafeQueue<std::string>();
-    subscriptions.clear();
+    subscriptions = new ThreadSafeList<subscription>();
 }
 
 void ScClient::message_processing()
@@ -62,7 +59,6 @@ int ScClient::socket_connect()
     protocol.per_session_data_size = sizeof(struct session_data);
     protocol.rx_buffer_size = 0;
     protocol.id = 0;
-    protocol.user = NULL; // (void *)this;
 
     context = lws_create_context(&info);
 
@@ -76,6 +72,7 @@ int ScClient::socket_connect()
     i.origin = address.c_str();
     i.protocol = "websocket";
     i.ietf_version_or_minus_one = -1;
+    i.userdata = (void *)this;
 
     lwsl_notice("[ScClient] context created.\n");
 
@@ -126,9 +123,10 @@ void ScClient::socket_disconnect()
 
 void ScClient::subscribe(string event, sccCallback f)
 {
-    std::map<string, sccCallback>::iterator it;
-    it = subscriptions.find(event);
-    if (it == subscriptions.end())
+    std::shared_ptr<subscription> sub = subscriptions->find_first_if([event](subscription const &t)
+                  { return std::get<0>(t) == event; });
+
+    if (sub == nullptr)
     {
         json_object *jobj = json_object_new_object();
         json_object *eventobject = json_object_new_string("#subscribe");
@@ -141,7 +139,7 @@ void ScClient::subscribe(string event, sccCallback f)
         json_object_object_add(jobj, "cid", cnt);
         message_queue->enqueue(json_object_to_json_string(jobj));
         json_object_put(jobj);
-        subscriptions.insert({event, f});
+        subscriptions->push_front(std::make_tuple(event, f));
         lwsl_notice("Subscribed to %s", event.c_str());
     }
     else
@@ -152,12 +150,8 @@ void ScClient::subscribe(string event, sccCallback f)
 
 void ScClient::unsubscribe(string event)
 {
-    std::map<string, sccCallback>::iterator it;
-    it = subscriptions.find(event);
-    if (it != subscriptions.end())
-    {
-        subscriptions.erase(it);
-    }
+    subscriptions->remove_if([event](subscription const &n)
+                             { return std::get<0>(n) == event; });
     lwsl_notice("Unsubscribed from %s", event.c_str());
 }
 
@@ -180,6 +174,8 @@ void ScClient::publish(string event, json_object *data)
 
 int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len)
 {
+    // printf("INSIDE: printf(\"%%p\", pf) is %p\n", this);
+
     // lwsl_notice("handle_lws_callback reason: %d", reason);
     switch (reason)
     {
@@ -196,47 +192,47 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
 
         message_queue->enqueue((char *)json_object_to_json_string(jobj));
 
-        connected_callback(this);
         lwsl_notice("[ScClient Service] Connected to server.\n");
+
         lws_callback_on_writable(wsi);
         connection_flag = 1;
 
         // Resubscribe to channels after reconnect
-        std::map<string, sccCallback> resubscriptions = subscriptions;
-        subscriptions.clear();
-        if (resubscriptions.size() > 0)
-        {
-            std::map<string, sccCallback>::iterator it;
-            for (it = resubscriptions.begin(); it != resubscriptions.end(); ++it)
-            {
-                subscribe(it->first, it->second);
-            }
-        }
+        ThreadSafeList<subscription> *resubscriptions = subscriptions;
+        subscriptions = new ThreadSafeList<subscription>();
+        resubscriptions->for_each([this](subscription const &n)
+                                  { subscribe(get<0>(n), get<1>(n)); });
+        delete resubscriptions;
+
         json_object_put(jobj);
+        if (connected_callback)
+        {
+            connected_callback(this);
+        }
     }
     break;
 
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
     {
-        // if (connected_error_callback != NULL)
-        // {
-        //     connected_error_callback("LWS Error.");
-        // }
         lwsl_notice("[ScClient Service] Connect with server error.\n");
         destroy_flag = 1;
         connection_flag = 0;
+        if (connected_error_callback != NULL)
+        {
+            connected_error_callback("LWS Error.");
+        }
     }
     break;
 
     case LWS_CALLBACK_CLOSED:
     {
-        // if (disconnected_callback != NULL)
-        // {
-        //     disconnected_callback("LWS Error.");
-        // }
         lwsl_notice("[ScClient Service] LWS_CALLBACK_CLOSED\n");
         destroy_flag = 1;
         connection_flag = 0;
+        if (disconnected_callback != NULL)
+        {
+            disconnected_callback("LWS Error.");
+        }
     }
     break;
 
@@ -273,14 +269,13 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
                     }
                 }
 
-                if (!channel.empty() && subscriptions.size() > 0)
+                if (!channel.empty())
                 {
-                    std::map<string, sccCallback>::iterator it;
-                    it = subscriptions.find(channel);
-                    if (it != subscriptions.end())
+                    std::shared_ptr<subscription> sub = subscriptions->find_first_if([channel](subscription const &t)
+                                                        { return std::get<0>(t) == channel; });
+                    if (sub != nullptr)
                     {
-                        sccCallback f = it->second;
-                        f(channel, data);
+                        get<1>(*sub)(channel, data);
                     }
                 }
                 json_object_put(data);
@@ -291,8 +286,10 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
     case LWS_CALLBACK_CLIENT_WRITEABLE:
     {
         std::string message = message_queue->dequeue();
+
         if (message != "empty")
         {
+            std::cout << "Sending: " << message << std::endl;
             unsigned char *output = (unsigned char *)malloc(sizeof(unsigned char) * (LWS_SEND_BUFFER_PRE_PADDING + message.size() + LWS_SEND_BUFFER_POST_PADDING));
             memcpy(output + LWS_SEND_BUFFER_PRE_PADDING * sizeof(unsigned char), message.c_str(), message.size());
             lws_write(wsi, output + LWS_SEND_BUFFER_PRE_PADDING * sizeof(unsigned char), message.size(), LWS_WRITE_TEXT);
@@ -313,12 +310,17 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
 
 static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len)
 {
-    ScClient *self = static_cast<ScClient *>(user);
-    return self->handle_lws_callback(wsi, reason, user, in, len);
-    // return result;
+
+    if (user != NULL)
+    {
+        ScClient *client = static_cast<ScClient *>(user);
+        return client->handle_lws_callback(wsi, reason, user, in, len);
+    }
+    return 0;
 }
 
 ScClient::~ScClient()
 {
     delete message_queue;
+    delete subscriptions;
 }

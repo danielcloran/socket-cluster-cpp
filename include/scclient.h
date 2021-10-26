@@ -26,7 +26,6 @@ struct session_data
 typedef function<void(string event, json_object *data)> sccCallback;
 typedef tuple<string, sccCallback> subscription;
 
-
 class ScClient
 {
 public:
@@ -54,13 +53,14 @@ public:
     string ping_str = "";
     string pong_str = "";
 
-    volatile bool connected;
+    // Status Flags
+    volatile bool connected = false;
+    volatile bool connection_flag = false;
 
     ~ScClient();
 
 private:
     ThreadSafeList<subscription> *subscriptions;
-    // map<string, sccCallback> subscriptions;
 
     ThreadSafeQueue<std::string> *message_queue;
     int msgCounter = 0;
@@ -70,6 +70,14 @@ private:
     int port;
     string path;
 
+
+    // LWS Setup
+    struct lws_protocols protocol;
+    struct lws *wsi;
+    struct lws_context *context;
+    struct lws_context_creation_info info;
+    struct lws_client_connect_info i;
+    struct sigaction act;
 };
 
 #endif // __SCCLIENT_H__

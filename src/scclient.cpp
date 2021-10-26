@@ -1,17 +1,7 @@
 #include <scclient.h>
 #include <thread>
 
-// Setting flags
 static volatile bool destroy_flag = false;
-static volatile bool connection_flag = false;
-
-// These MUST be defined globally for LWS (will segfault if not)
-struct lws_protocols protocol;
-struct lws *wsi;
-struct lws_context *context;
-struct lws_context_creation_info info;
-struct lws_client_connect_info i;
-struct sigaction act;
 
 ScClient::ScClient(string _address, int _port, string _path) : address(_address), port(_port), path(_path)
 {

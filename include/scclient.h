@@ -47,9 +47,12 @@ public:
     // Acknowledge Functions
     std::function<void(int)> f_display;
 
-    function<void(ScClient *)> connected_callback;
+    function<void(ScClient *)> connected_callback = NULL;
     function<void(string error)> connected_error_callback = NULL;
     function<void(string reason)> disconnected_callback = NULL;
+
+    string ping_str = "";
+    string pong_str = "";
 
     volatile bool connected;
 

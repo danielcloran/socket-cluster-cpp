@@ -239,9 +239,9 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
     case LWS_CALLBACK_CLIENT_RECEIVE:
     {
         // Keep Alive, ping/pong.
-        if (strcmp((char *)in, (char *)"") == 0)
+        if (strcmp((char *)in, ping_str.c_str()) == 0)
         {
-            message_queue->enqueue((char *)"");
+            message_queue->enqueue(pong_str.c_str());
         }
         else
         {
@@ -289,7 +289,7 @@ int ScClient::handle_lws_callback(struct lws *wsi, enum lws_callback_reasons rea
 
         if (message != "empty")
         {
-            std::cout << "Sending: " << message << std::endl;
+            // std::cout << "Sending: " << message << std::endl;
             unsigned char *output = (unsigned char *)malloc(sizeof(unsigned char) * (LWS_SEND_BUFFER_PRE_PADDING + message.size() + LWS_SEND_BUFFER_POST_PADDING));
             memcpy(output + LWS_SEND_BUFFER_PRE_PADDING * sizeof(unsigned char), message.c_str(), message.size());
             lws_write(wsi, output + LWS_SEND_BUFFER_PRE_PADDING * sizeof(unsigned char), message.size(), LWS_WRITE_TEXT);

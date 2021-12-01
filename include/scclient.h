@@ -1,82 +1,94 @@
+//
+//  SCClient.h
+//
+//  Created by Daniel Cloran on 11/2/21.
+//
 
-#ifndef __SCCLIENT_H__
-#define __SCCLIENT_H__
+#ifndef SCClient_h
+#define SCClient_h
 
-#include <stdlib.h>
-#include <iostream>
-#include <string>
-#include <map>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything" //ignore warnings in external libs
+
+// Boost libs
+#include <boost/beast/core.hpp>
+#include <boost/beast/websocket.hpp>
+#include <boost/asio/strand.hpp>
+
+#pragma clang diagnostic pop
+
+// Std libs
+#include <cstdlib>
 #include <functional>
-#include <signal.h>
-
+#include <iostream>
+#include <memory>
+#include <string>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "json-c/json.h"
-#include <threadSafeQueue.h>
-#include <threadSafeList.h>
-#include <libwebsockets.h>
 
-using namespace std;
+// Callback and Subscription types
+typedef std::function<void(std::string event, json_object *data)> socketCallback;
+typedef std::tuple<std::string, socketCallback> subscription;
 
-static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
-struct session_data
-{
-    int fd;
-};
 
-typedef function<void(string event, json_object *data)> sccCallback;
-typedef tuple<string, sccCallback> subscription;
+// Custom libs
+#include "ThreadSafeQueue.h"
+#include "ThreadSafeList.h"
 
-class ScClient
+namespace beast = boost::beast;
+namespace http = beast::http;
+namespace websocket = beast::websocket;
+namespace net = boost::asio;
+using tcp = boost::asio::ip::tcp;
+
+class SCClient : public std::enable_shared_from_this<SCClient>
 {
 public:
-    ScClient(string address, int port, string path);
-
-    // Connection Functions
-    int socket_connect();
-    void socket_reset();
-    void socket_disconnect();
-
-    int handle_lws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *in, size_t len);
-
-    // Send Functions
-    void publish(string event, json_object *);
-    void subscribe(string event, sccCallback);
-    void unsubscribe(string event);
-
-    // Acknowledge Functions
-    function<void(ScClient *)> connected_callback = NULL;
-    function<void(string error)> connected_error_callback = NULL;
-    function<void(string reason)> disconnected_callback = NULL;
-
-    // Allow for custom ping-pong strings
-    string ping_str = "";
-    string pong_str = "";
-
-    // Status Flags
-    volatile bool connection_flag = false;
-    volatile bool destroy_flag = false;
+    SCClient(net::io_context& ioc);
+    std::thread launch_socket(const char * host, const char * port);
+    void subscribe(std::string channel, socketCallback callback);
+    void unsubscribe(std::string channel);
+    void publish(std::string channel,  std::string data);
+    void publish(std::string channel,  json_object *data);
 
 
-    ~ScClient();
+    void stop();
 
 private:
-    ThreadSafeList<subscription> *subscriptions;
+    void fail(beast::error_code ec, char const* what);
+    void on_resolve(beast::error_code ec, tcp::resolver::results_type results);
+    void on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type ep);
+    void on_handshake(beast::error_code ec);
+    void on_write(beast::error_code ec, std::size_t bytes_transferred);
+    void on_read(beast::error_code ec, std::size_t bytes_transferred);
+    void on_close(beast::error_code ec);
 
-    ThreadSafeQueue<std::string> *message_queue;
-    int msgCounter = 0;
+    void run(char const* host, char const* port);
+
+    // Async Message Processing
+    int msgCounter = 1;
+    std::thread messageThread;
     void message_processing();
 
-    string address;
-    int port;
-    string path;
+    void resubscribe(std::string channel, socketCallback callback);
 
+    net::io_context& the_io_context;
+    tcp::resolver resolver_;
+    websocket::stream<beast::tcp_stream> ws_;
+    beast::flat_buffer buffer_;
+    std::string host_;
+    std::string port_;
 
-    // LWS Setup
-    struct lws_protocols protocol;
-    struct lws *wsi;
-    struct lws_context *context;
-    struct lws_context_creation_info info;
-    struct lws_client_connect_info i;
-    struct sigaction act;
+    std::condition_variable writable_cv;
+    std::mutex writable_m;
+    volatile bool writable = false;
+    volatile bool socket_connected = false;
+    volatile bool socket_closed = false;
+
+    std::unique_ptr<ThreadSafeQueue<std::string>> message_queue;
+    std::unique_ptr<ThreadSafeList<subscription>> subscription_list;
 };
 
-#endif // __SCCLIENT_H__
+#endif /* SCClient_h */

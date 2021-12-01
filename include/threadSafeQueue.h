@@ -1,5 +1,5 @@
-#ifndef THREAD_SAFE_QUEUE
-#define THREAD_SAFE_QUEUE
+#ifndef ThreadSafeQueue_h
+#define ThreadSafeQueue_h
 
 #include <mutex>
 #include <queue>
@@ -10,7 +10,7 @@ template <class T>
 class ThreadSafeQueue
 {
 public:
-    ThreadSafeQueue(int maxSize = 20) : maxSize(maxSize), q(), m(), c() {}
+    ThreadSafeQueue(int maxSize = 200) : maxSize(maxSize), q(), m(), c() {}
     ~ThreadSafeQueue() {}
 
     // Add an element to the queue.
@@ -18,20 +18,40 @@ public:
     {
         std::lock_guard<std::mutex> lock(m);
         if (q.size() < maxSize) {
-            q.push(t);
+            q.push_back(t);
         }
         else {
             /*
                 If this error is thrown, the write rate is too high, or the socket
                 has disconnected without recognizing and the queue is backing up.
             */
-            std::cerr << "Message Queue Full. Dumping oldest message." << std::endl;
-            q.pop();
-            q.push(t);
+            auto currentClock = std::chrono::system_clock::now();
+            std::time_t currentTime = std::chrono::system_clock::to_time_t(currentClock);
+            std::cerr << std::ctime(&currentTime) << "Message Queue Full. Dumping oldest message." << std::endl;
+            q.pop_back();
+            q.push_back(t);
         }
         // std::cout<< "Adding to msg Queue size is now: " << q.size() << std::endl;
         c.notify_one();
     }
+
+    void push_front(T t)
+    {
+        std::lock_guard<std::mutex> lock(m);
+        if (q.size() >= maxSize)
+        {
+            /*
+                If this error is thrown, the write rate is too high, or the socket
+                has disconnected without recognizing and the queue is backing up.
+            */
+            auto currentClock = std::chrono::system_clock::now();
+            std::time_t currentTime = std::chrono::system_clock::to_time_t(currentClock);
+            std::cerr << std::ctime(&currentTime) << "Push_front exceeds max queue size: allowing anyway." << std::endl;\
+        }
+        q.push_front(t);
+        c.notify_one();
+    }
+
 
     // Get the front element.
     // If the queue is empty, wait till a element is avaiable.
@@ -40,7 +60,7 @@ public:
         std::unique_lock<std::mutex> lock(m);
         if (q.empty()) return "";
         T val = q.front();
-        q.pop();
+        q.pop_front();
         // std::cout<< "Removing from msg Queue size is now: " << q.size() << std::endl;
         return val;
     }
@@ -63,9 +83,10 @@ public:
     }
 
 private:
-    std::queue<T> q;
+    std::deque<T> q;
     mutable std::mutex m;
     std::condition_variable c;
     int maxSize;
 };
-#endif // THREAD_SAFE_QUEUE
+
+#endif // ThreadSafeQueue_h

@@ -1,5 +1,5 @@
 # socket-cluster-cpp
-This socketcluster client is developed using [libwebsockets](https://github.com/warmcat/libwebsockets) and [json-c](https://github.com/json-c/json-c) library in C++. So far, this library only supports very simple publish and subscribe, pending interest... more functionality can be added.
+This socketcluster client is developed using [boost](https://github.com/warmcat/libwebsockets) and [json-c](https://github.com/json-c/json-c) library in C++. So far, this library only supports very simple publish and subscribe, pending interest... more functionality can be added.
 
 See [examples](https://github.com/danielcloran/socket-cluster-cpp/tree/main/examples) for implementation.
 

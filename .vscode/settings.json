@@ -79,6 +79,16 @@
         "*.tcc": "cpp",
         "memory_resource": "cpp",
         "stop_token": "cpp",
-        "cinttypes": "cpp"
-    }
+        "cinttypes": "cpp",
+        "*.ipp": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "csignal": "cpp",
+        "future": "cpp",
+        "iomanip": "cpp",
+        "list": "cpp",
+        "typeindex": "cpp",
+        "variant": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
 }

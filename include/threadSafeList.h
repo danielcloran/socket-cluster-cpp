@@ -1,3 +1,6 @@
+#ifndef ThreadSafeList_h
+#define ThreadSafeList_h
+
 template <typename T>
 class ThreadSafeList
 {
@@ -90,3 +93,5 @@ public:
         }
     }
 };
+
+#endif // ThreadSafeList_h

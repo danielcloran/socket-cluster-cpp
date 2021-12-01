@@ -5,19 +5,13 @@ project(scclient-cpp VERSION 1.0)
 add_definitions(-std=c++17 -Wno-deprecated -Wno-nullability-completeness -Wno-deprecated-declarations)
 
 set(SOURCES
-    # Lib cpp file
     src/SCClient.cpp
 )
-
-find_package(libwebsockets CONFIG REQUIRED)
-list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
-include(LwsCheckRequirements)
 
 find_package(Boost 1.76.0 REQUIRED) # header only libraries must not be added here
 
 add_executable(example_client_simple examples/example_client_simple.cpp ${SOURCES})
 add_executable(example_client_classed examples/example_client_classed.cpp ${SOURCES})
-
 
 target_include_directories(example_client_simple PRIVATE HEADER_FILE_ONLY "${PROJECT_SOURCE_DIR}/include")
 target_include_directories(example_client_simple PRIVATE HEADER_FILE_ONLY "/usr/local/include/")

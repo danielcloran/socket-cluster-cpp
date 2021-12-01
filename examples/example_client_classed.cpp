@@ -70,7 +70,7 @@ int main()
     manager->publish_test();
 
     usleep(1000000);
-    /*
+
     while (true)
     {
         usleep(1000000);
@@ -80,7 +80,7 @@ int main()
         // keep-alive defaults to true the socket will only close if manager->stop(); is called,
         // and will auto-reconnect in case of unexpected disconnection.
     }
-    */
+
 
     manager->stop();
     socketThread.join();

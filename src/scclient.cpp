@@ -198,7 +198,7 @@ void SCClient::on_handshake(beast::error_code ec)
 
 // Monitor the ThreadSafeQueue and call write when writable
 void SCClient::message_processing() {
-    while (true) {
+    while (!socket_closed) {
         /*
             Only one call to async_write is allowed at a time.
             on_write (callback of async_write) sets writable = true again.
